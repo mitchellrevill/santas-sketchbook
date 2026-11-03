@@ -1,0 +1,15 @@
+{
+  "name": "santas-sketchbook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A local Santa drawing and voice brainstorming prototype",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/server.test.mjs",
+    "test:browser": "playwright test",
+    "check:account": "node scripts/check-account.mjs"
+  },
+  "devDependencies": { "@playwright/test": "1.64.1" }
+}
