@@ -7,7 +7,8 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test test/server.test.mjs",
+    "start:demo": "node --import ./scripts/demo-mode.mjs server.mjs",
+    "test": "node --test test/server.test.mjs test/codex.test.mjs",
     "test:browser": "playwright test",
     "check:account": "node scripts/check-account.mjs"
   },

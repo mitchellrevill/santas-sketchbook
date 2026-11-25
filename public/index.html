@@ -10,6 +10,7 @@
     <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z"/></symbol>
     <symbol id="i-pen" viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14Z"/></symbol>
     <symbol id="i-eraser" viewBox="0 0 24 24"><path d="m9 20-6-6a2 2 0 0 1 0-3L12 2a2 2 0 0 1 3 0l7 7a2 2 0 0 1 0 3l-8 8Zm-3-12 10 10M9 20h13"/></symbol>
+    <symbol id="i-fill" viewBox="0 0 24 24"><path d="m4 10 7-7 9 9-7 7a2 2 0 0 1-3 0l-6-6a2 2 0 0 1 0-3ZM7 2l6 6M3 12h17M20 16s-2 2-2 3a2 2 0 0 0 4 0c0-1-2-3-2-3Z"/></symbol>
     <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 4 3 9l5 5M3 9h11a7 7 0 0 1 0 14" transform="translate(0 -2)"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1"/><path d="m3 17 5-5 4 4 4-6 5 7"/></symbol>
     <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></symbol>
@@ -27,21 +28,22 @@
       <div id="drawing-cursor" class="drawing-cursor" hidden aria-hidden="true"><svg><use href="#i-pen"/></svg></div>
       <div id="snow-overlay" class="snow-overlay" hidden aria-hidden="true"><canvas id="snow"></canvas><div class="snow-fog"></div><div class="snow-message"><span>✧</span><p id="snow-message">A little North Pole magic…</p><small>Your picture is on its way</small></div></div>
     </section>
+    <p id="work-status" class="notice working" role="status" aria-live="polite" hidden></p>
     <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
   </main>
 
   <div class="control-dock">
   <aside class="voice-card" aria-label="AI voice helper">
-    <button id="voice" class="voice-button" title="Talk to the AI · GPT-Live-1" aria-label="Talk to the AI · GPT-Live-1"><span id="voice-orb" class="voice-orb" aria-hidden="true"><span class="orb-core"></span><span class="orb-light"></span></span><span class="voice-indicator" aria-hidden="true"></span><span id="voice-label" class="sr-only">Talk to Pip</span></button>
+    <button id="voice" class="voice-button" title="Talk to Santa’s little helper" aria-label="Talk to Santa’s little helper"><span id="voice-orb" class="voice-orb" aria-hidden="true"><span class="orb-core"></span><span class="orb-light"></span></span><span class="voice-indicator" aria-hidden="true"></span><span id="voice-label" class="sr-only">Talk to Santa’s little helper</span></button>
     <span id="voice-state" class="sr-only" role="status">Microphone off</span>
     <p id="caption" class="sr-only" hidden aria-live="off"></p>
-    <audio id="voice-audio" autoplay controls hidden aria-label="Pip's voice playback"></audio>
+    <audio id="voice-audio" autoplay controls hidden aria-label="Santa’s little helper's voice playback"></audio>
   </aside>
 
   <button id="stop-action" class="stop-action" hidden>Stop</button>
   <div id="controls-panel" class="controls-panel">
   <nav class="toolbar" aria-label="Drawing tools">
-    <div class="tool-group"><button id="pen" class="tool selected" aria-label="Pen" aria-pressed="true" title="Pen"><svg><use href="#i-pen"/></svg></button><button id="eraser" class="tool" aria-label="Eraser" aria-pressed="false" title="Eraser"><svg><use href="#i-eraser"/></svg></button></div>
+    <div class="tool-group"><button id="pen" class="tool selected" aria-label="Pen" aria-pressed="true" title="Pen"><svg><use href="#i-pen"/></svg></button><button id="eraser" class="tool" aria-label="Eraser" aria-pressed="false" title="Eraser"><svg><use href="#i-eraser"/></svg></button><button id="fill" class="tool" aria-label="Fill colour" aria-pressed="false" title="Fill a closed area"><svg><use href="#i-fill"/></svg></button></div>
     <span class="divider"></span>
     <div id="swatches" class="swatches" role="group" aria-label="Pen colour">
       <button class="swatch selected" data-colour="#be4147" style="--swatch:#be4147" aria-label="Berry red" aria-pressed="true"></button>
@@ -62,12 +64,16 @@
     <button id="ideas-button" class="tool" aria-label="Our ideas" title="Our ideas"><svg><use href="#i-note"/></svg></button>
     <button id="save" class="tool" aria-label="Save picture" title="Save picture"><svg><use href="#i-download"/></svg></button>
   </div>
-  <div class="extra-actions"><button id="starter" class="text-button">Start with a sleigh</button><button id="mute" class="text-button" hidden>Mute mic</button><button id="setup-button" class="text-button">Grown-ups <span id="connection-dot" class="connection-dot"></span></button></div>
+  <div class="extra-actions"><button id="starter" class="text-button">Start with a sleigh</button><button id="mute" class="text-button" hidden>Mute mic</button><button id="preview-snow" class="text-button">Visit the ice floes</button></div>
   </div>
   </div>
 
-  <dialog id="ideas-dialog" class="ideas-dialog"><form method="dialog"><button class="close-button tool" aria-label="Close ideas"><svg><use href="#i-close"/></svg></button></form><span class="eyebrow">A LITTLE PLAN</span><h2>What shall we dream up?</h2><p>Tell Pip your ideas, or add them here. These notes help make your picture.</p><label for="notes">My picture ideas</label><textarea id="notes" maxlength="2000" rows="5" placeholder="A cherry-red sleigh, golden stars and a very cosy Santa…"></textarea><label class="check-row"><input id="include-conversation" type="checkbox" checked>Use our chat when making the picture</label><details><summary>Our conversation</summary><div id="transcript" class="transcript">Your conversation will appear here.</div></details><button id="forget" class="text-button">Forget this conversation</button></dialog>
+  <dialog id="ideas-dialog" class="ideas-dialog"><form method="dialog"><button class="close-button tool" aria-label="Close ideas"><svg><use href="#i-close"/></svg></button></form><h2>Our ideas</h2><p>Tell Santa’s little helper your ideas, or add them here. These notes help make your picture.</p><form id="demo-request-form" hidden><label for="demo-request">Ask Santa’s little helper to draw or enhance</label><p class="quiet">Temporary Codex demo: type a request here without starting the microphone.</p><input id="demo-request" type="text" maxlength="1000" placeholder="Draw a star in the upper-left corner"><button id="demo-submit" type="submit" class="small-button">Ask Santa’s little helper</button></form><label for="notes">My picture ideas</label><textarea id="notes" maxlength="2000" rows="5" placeholder="A cherry-red sleigh, golden stars and a very cosy Santa…"></textarea><label class="check-row"><input id="include-conversation" type="checkbox" checked>Use our chat when making the picture</label><details><summary>Our conversation</summary><div id="transcript" class="transcript">Your conversation will appear here.</div></details><button id="forget" class="text-button">Forget this conversation</button> <button id="reset-session" class="text-button">Reset sketchbook</button></dialog>
+  <dialog id="reset-dialog" aria-labelledby="reset-title">
+    <h2 id="reset-title">Reset the sketchbook?</h2>
+    <p>This ends voice and clears the picture, undo history, notes and chat from this page. Save your picture first if you want to keep it.</p>
+    <form method="dialog" class="dialog-actions"><button class="small-button" autofocus>Keep sketchbook</button><button id="confirm-reset" type="button" class="magic-button">Reset everything</button></form>
+  </dialog>
 
-  <dialog id="setup-dialog"><form method="dialog"><button class="close-button tool" aria-label="Close setup"><svg><use href="#i-close"/></svg></button></form><span class="eyebrow">FOR GROWN-UPS</span><h2>A little setup, then magic.</h2><p id="setup-status">Checking the local connection…</p><div class="setup-step"><strong>Connect your OpenAI credits</strong><p>Run this in PowerShell inside the project folder. It asks for your API key privately and saves it in the local, Git-ignored <code>.env</code> file.</p><code class="command">.\setup.ps1</code><p class="quiet">Models: GPT-Live-1 and GPT-Image-2. AI calls use your API credits. The app cannot check your credit balance.</p><button id="refresh-config" class="small-button">Check connection again</button></div><div class="setup-step"><strong>Adult test mode</strong><p>For now, an adult should try the voice and picture features. Audio, pictures and selected chat notes go to OpenAI. This app keeps no recordings or saved gallery.</p><p class="quiet">Before children use it, arrange appropriate privacy controls, including OpenAI zero data retention for under-13 personal data, and test the voice safeguards. This checkbox does not configure those controls.</p><label class="check-row"><input id="adult-test" type="checkbox">I am an adult testing with my own voice and non-personal pictures.</label></div><button id="preview-snow" class="small-button">Preview the snowfall · no credits used</button><p class="quiet">Preview shows the animation only. Reloading the page clears the drawing and conversation; save any picture you want to keep.</p></dialog>
   <dialog id="clear-dialog"><h2>A fresh page?</h2><p>Your current picture can still be recovered with Undo.</p><div class="dialog-actions"><button id="cancel-clear" class="small-button">Keep drawing</button><button id="confirm-clear" class="magic-button">Start again</button></div></dialog>
 </body></html>

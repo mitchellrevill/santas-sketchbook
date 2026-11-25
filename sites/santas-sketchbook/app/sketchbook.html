@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f8f7f3"><title>Santa's Sketchbook</title>
+  <link rel="stylesheet" href="/app.css"><script type="module" src="/app.js"></script>
+</head>
+<body>
+  <svg class="icon-definitions" aria-hidden="true"><defs>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14Z"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24"><path d="m9 20-6-6a2 2 0 0 1 0-3L12 2a2 2 0 0 1 3 0l7 7a2 2 0 0 1 0 3l-8 8Zm-3-12 10 10M9 20h13"/></symbol>
+    <symbol id="i-fill" viewBox="0 0 24 24"><path d="m4 10 7-7 9 9-7 7a2 2 0 0 1-3 0l-6-6a2 2 0 0 1 0-3ZM7 2l6 6M3 12h17M20 16s-2 2-2 3a2 2 0 0 0 4 0c0-1-2-3-2-3Z"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 4 3 9l5 5M3 9h11a7 7 0 0 1 0 14" transform="translate(0 -2)"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1"/><path d="m3 17 5-5 4 4 4-6 5 7"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/></symbol>
+    <symbol id="i-bin" viewBox="0 0 24 24"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 3h14v14l-4 4H5ZM8 8h8M8 12h6M14 21v-5h5"/></symbol>
+  </defs></svg>
+
+  <main>
+    <section class="paper" aria-label="Your Christmas drawing">
+      <canvas id="drawing" width="1536" height="1024" aria-label="Drawing canvas. Use a mouse, touch or pen to draw; or use Add a picture below."></canvas>
+      <div class="paper-grain" aria-hidden="true"></div>
+      <div id="drawing-cursor" class="drawing-cursor" hidden aria-hidden="true"><svg><use href="#i-pen"/></svg></div>
+      <div id="snow-overlay" class="snow-overlay" hidden aria-hidden="true"><canvas id="snow"></canvas><div class="snow-fog"></div><div class="snow-message"><span>✧</span><p id="snow-message">A little North Pole magic…</p><small>Your picture is on its way</small></div></div>
+    </section>
+    <p id="work-status" class="notice working" role="status" aria-live="polite" hidden></p>
+    <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+  </main>
+
+  <div class="control-dock">
+  <aside class="voice-card" aria-label="AI voice helper">
+    <button id="voice" class="voice-button" title="Talk to Santa’s little helper" aria-label="Talk to Santa’s little helper"><span id="voice-orb" class="voice-orb" aria-hidden="true"><span class="orb-core"></span><span class="orb-light"></span></span><span class="voice-indicator" aria-hidden="true"></span><span id="voice-label" class="sr-only">Talk to Santa’s little helper</span></button>
+    <span id="voice-state" class="sr-only" role="status">Microphone off</span>
+    <p id="caption" class="sr-only" hidden aria-live="off"></p>
+    <audio id="voice-audio" autoplay controls hidden aria-label="Santa’s little helper's voice playback"></audio>
+  </aside>
+
+  <button id="stop-action" class="stop-action" hidden>Stop</button>
+  <div id="controls-panel" class="controls-panel">
+  <nav class="toolbar" aria-label="Drawing tools">
+    <div class="tool-group"><button id="pen" class="tool selected" aria-label="Pen" aria-pressed="true" title="Pen"><svg><use href="#i-pen"/></svg></button><button id="eraser" class="tool" aria-label="Eraser" aria-pressed="false" title="Eraser"><svg><use href="#i-eraser"/></svg></button><button id="fill" class="tool" aria-label="Fill colour" aria-pressed="false" title="Fill a closed area"><svg><use href="#i-fill"/></svg></button></div>
+    <span class="divider"></span>
+    <div id="swatches" class="swatches" role="group" aria-label="Pen colour">
+      <button class="swatch selected" data-colour="#be4147" style="--swatch:#be4147" aria-label="Berry red" aria-pressed="true"></button>
+      <button class="swatch" data-colour="#e8ac47" style="--swatch:#e8ac47" aria-label="Golden yellow" aria-pressed="false"></button>
+      <button class="swatch" data-colour="#46876e" style="--swatch:#46876e" aria-label="Forest green" aria-pressed="false"></button>
+      <button class="swatch" data-colour="#6b98c6" style="--swatch:#6b98c6" aria-label="Winter blue" aria-pressed="false"></button>
+      <button class="swatch" data-colour="#8c74af" style="--swatch:#8c74af" aria-label="Plum purple" aria-pressed="false"></button>
+      <button class="swatch" data-colour="#353c3b" style="--swatch:#353c3b" aria-label="Charcoal" aria-pressed="false"></button>
+      <label class="custom-colour" title="Pick any colour"><input id="colour" type="color" value="#be4147" aria-label="Pick any colour"><span aria-hidden="true">+</span></label>
+    </div>
+    <span class="divider"></span>
+    <div class="thickness"><button id="thickness-button" class="tool" aria-label="Pen thickness" aria-expanded="false"><span id="brush-dot"></span></button><div id="thickness-panel" class="thickness-panel" hidden><label for="thickness">Pen thickness <output id="thickness-value">8</output></label><input id="thickness" type="range" min="2" max="48" value="8"></div></div>
+    <span class="divider"></span>
+    <div class="tool-group"><button id="undo" class="tool" aria-label="Undo" title="Undo (Ctrl+Z)" disabled><svg><use href="#i-undo"/></svg></button><button id="upload" class="tool" aria-label="Add a picture" title="Add a picture"><svg><use href="#i-image"/></svg></button><button id="clear" class="tool" aria-label="New drawing" title="New drawing"><svg><use href="#i-bin"/></svg></button></div>
+    <input id="file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+  </nav>
+  <div class="page-actions">
+    <button id="ideas-button" class="tool" aria-label="Our ideas" title="Our ideas"><svg><use href="#i-note"/></svg></button>
+    <button id="save" class="tool" aria-label="Save picture" title="Save picture"><svg><use href="#i-download"/></svg></button>
+  </div>
+  <div class="extra-actions"><button id="starter" class="text-button">Start with a sleigh</button><button id="mute" class="text-button" hidden>Mute mic</button><button id="preview-snow" class="text-button">Visit the ice floes</button></div>
+  </div>
+  </div>
+
+  <dialog id="ideas-dialog" class="ideas-dialog"><form method="dialog"><button class="close-button tool" aria-label="Close ideas"><svg><use href="#i-close"/></svg></button></form><h2>Our ideas</h2><p>Tell Santa’s little helper your ideas, or add them here. These notes help make your picture.</p><form id="demo-request-form" hidden><label for="demo-request">Ask Santa’s little helper to draw or enhance</label><p class="quiet">Temporary Codex demo: type a request here without starting the microphone.</p><input id="demo-request" type="text" maxlength="1000" placeholder="Draw a star in the upper-left corner"><button id="demo-submit" type="submit" class="small-button">Ask Santa’s little helper</button></form><label for="notes">My picture ideas</label><textarea id="notes" maxlength="2000" rows="5" placeholder="A cherry-red sleigh, golden stars and a very cosy Santa…"></textarea><label class="check-row"><input id="include-conversation" type="checkbox" checked>Use our chat when making the picture</label><details><summary>Our conversation</summary><div id="transcript" class="transcript">Your conversation will appear here.</div></details><button id="forget" class="text-button">Forget this conversation</button> <button id="reset-session" class="text-button">Reset sketchbook</button></dialog>
+  <dialog id="reset-dialog" aria-labelledby="reset-title">
+    <h2 id="reset-title">Reset the sketchbook?</h2>
+    <p>This ends voice and clears the picture, undo history, notes and chat from this page. Save your picture first if you want to keep it.</p>
+    <form method="dialog" class="dialog-actions"><button class="small-button" autofocus>Keep sketchbook</button><button id="confirm-reset" type="button" class="magic-button">Reset everything</button></form>
+  </dialog>
+
+  <dialog id="clear-dialog"><h2>A fresh page?</h2><p>Your current picture can still be recovered with Undo.</p><div class="dialog-actions"><button id="cancel-clear" class="small-button">Keep drawing</button><button id="confirm-clear" class="magic-button">Start again</button></div></dialog>
+</body></html>

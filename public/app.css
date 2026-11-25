@@ -56,10 +56,14 @@ button svg { pointer-events: none; }
 .connection-dot.ready { background: #6b9477; }
 .notice { position: fixed; z-index: 7; top: 20px; left: 50%; transform: translateX(-50%); max-width: min(540px, calc(100vw - 40px)); margin: 0; background: #fffffff2; box-shadow: 0 3px 16px #2a352d0d; border-radius: 12px; padding: 10px 15px; font-size: 12px; line-height: 1.6; text-align: center; color: #7c897e; pointer-events: none; }
 .notice.error { color: #a95353; }
-.snow-overlay { position: absolute; z-index: 3; inset: 0; overflow: hidden; opacity: 0; transition: opacity .5s; background: #e3ecf334; }
+.notice.working { display: flex; align-items: center; gap: 10px; color: #395d62; border: 1px solid #d6e6e6; }
+#work-status:not([hidden]) + .notice { top: 84px; }
+.notice.working::before { content: ''; flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: #5c9298; animation: helper-working 1.6s ease-in-out infinite; }
+@keyframes helper-working { 0%, 100% { opacity: .4; box-shadow: 0 0 0 0 #5c929830; } 50% { opacity: 1; box-shadow: 0 0 0 5px #5c929810; } }
+.snow-overlay { position: absolute; z-index: 3; inset: 0; overflow: hidden; opacity: 0; transition: opacity .5s; background: #9bbbd252; }
 .snow-overlay.visible { opacity: 1; }
 .snow-overlay canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.snow-fog { position: absolute; inset: -100%; background: radial-gradient(ellipse at 30% 50%, #ffffffec, transparent 46%), radial-gradient(ellipse at 70% 45%, #ffffffdb, transparent 48%); animation: blizzard 3.4s ease-in-out infinite alternate; opacity: .8; }
+.snow-fog { position: absolute; inset: -40%; background: radial-gradient(ellipse at 18% 65%, #ffffff 5%, #ffffffe0 18%, transparent 38%), radial-gradient(ellipse at 78% 30%, #ffffff 4%, #ffffffd9 20%, transparent 42%); animation: blizzard 2.2s ease-in-out infinite alternate; opacity: .9; pointer-events: none; }
 .snow-overlay.whiteout { background: white; transition: background .4s; }
 .snow-message { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #7c929d; text-align: center; text-shadow: 0 1px 10px white; }
 .snow-message span { font-size: 28px; }
@@ -67,7 +71,17 @@ button svg { pointer-events: none; }
 .snow-message small { font-size: 10px; }
 .snow-overlay.whiteout .snow-message { opacity: 0; }
 .small-button { display: inline-flex; align-items: center; font-size: 11px; gap: 7px; border: 1px solid #dfe5d9; background: #fffdfa; border-radius: 10px; padding: 10px 12px; }
+#demo-request-form { padding: 16px 0; border-bottom: 1px solid var(--line); }
+#demo-request-form label { display: block; font-size: 12px; }
+#demo-request { width: 100%; margin: 8px 0 12px; padding: 12px; border: 1px solid #dce2d5; border-radius: 10px; background: white; color: var(--ink); }
 dialog{border:1px solid #e0e5d9;border-radius:22px;padding:36px;width:min(480px,calc(100% - 32px));max-height:85svh;color:var(--ink);box-shadow:0 20px 100px #193a2925;background:#fffefa}dialog::backdrop{background:#314c3c30;backdrop-filter:blur(4px)}dialog h2{font:normal 27px Georgia;letter-spacing:-.5px;margin:14px 0}dialog p{font-size:12px;line-height:1.75;color:#758072}.eyebrow{font-size:8px;letter-spacing:2px;color:#87967f}.close-button{position:absolute;top:15px;right:15px}.setup-step{border-top:1px solid var(--line);margin-top:20px;padding-top:20px}.setup-step strong{font-size:12px}.command{display:block;background:#f1f4ed;padding:13px;border-radius:8px;font-size:12px}.quiet{font-size:10px!important;color:#8a9484!important}.check-row{display:flex;align-items:flex-start;gap:10px;font-size:11px;line-height:1.65;margin:18px 0}.check-row input{accent-color:var(--green);margin:3px 0;flex-shrink:0}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}label[for=notes]{font-size:11px;display:block;margin:22px 0 9px}textarea{width:100%;resize:vertical;border:1px solid #dce2d5;border-radius:10px;padding:14px;background:white;color:var(--ink);font-size:12px;line-height:1.7}textarea::placeholder{color:#a5ada0}summary{font-size:11px;cursor:pointer}.transcript{margin-top:15px;font-size:11px;line-height:1.7;max-height:220px;overflow:auto;white-space:pre-wrap}.ideas-dialog{margin-right:35px}.dialog-actions .magic-button{font-size:11px;padding:12px 18px}
 @keyframes blizzard { from { transform: translate(-9%,7%) rotate(-13deg); } to { transform: translate(10%,-4%) rotate(10deg); } }
 @media(max-width: 650px) { .toolbar { gap: 4px; } .toolbar > .divider { display: none; } .thickness-panel { left: auto; right: 0; } dialog { padding: 28px 22px; } }
 @media(prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .voice-orb, .orb-core, .orb-light { transform: none !important; } .snow-fog { inset: 0; background: #f2f7f5e8; } .snow-overlay canvas { display: none; } }
+
+.snow-overlay.at-lake { background: #153959; }
+.snow-overlay.at-lake canvas { animation: lake-arrival 1.2s ease-out both; }
+@keyframes lake-arrival { from { transform: translateX(8%); opacity: .2; } to { transform: translateX(0); opacity: 1; } }
+.snow-overlay.at-lake .snow-fog { opacity: 0; transition: opacity 1.2s; }
+.snow-overlay.at-lake .snow-message { justify-content: flex-start; padding-top: 12vh; color: #f0fcff; text-shadow: 0 2px 8px #163854; }
+@media(prefers-reduced-motion: reduce) { .snow-overlay.at-lake canvas { display: block; } }

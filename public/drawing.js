@@ -2,7 +2,7 @@ export class Drawing {
   constructor(canvas, onChange) {
     this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.onChange = onChange;
     this.colour = '#be4147'; this.thickness = 8; this.tool = 'pen'; this.locked = false;
-    this.hasContent = false; this.history = []; this.pointer = null;
+    this.hasContent = false; this.history = []; this.pointer = null; this.revision = 0;
     this.resize();
     this.white();
     new ResizeObserver(() => this.resize()).observe(canvas);
@@ -11,6 +11,7 @@ export class Drawing {
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, event => this.end(event));
   }
   white() { this.ctx.fillStyle = '#ffffff'; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+  changed() { this.revision++; this.onChange(); }
   paint(image) {
     const width = image.naturalWidth || image.width, height = image.naturalHeight || image.height;
     const scale = Math.min(this.canvas.width / width, this.canvas.height / height);
@@ -26,6 +27,7 @@ export class Drawing {
     copy.getContext('2d').drawImage(this.canvas, 0, 0);
     this.canvas.width = width; this.canvas.height = height; this.white();
     if (this.hasContent) this.paint(copy);
+    this.revision++;
   }
   snapshot() {
     this.history.push({ image: this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height), hasContent: this.hasContent });
@@ -37,11 +39,13 @@ export class Drawing {
   }
   begin(event) {
     if (this.locked || this.pointer !== null || event.button !== 0) return;
-    event.preventDefault(); this.snapshot(); this.pointer = event.pointerId;
+    event.preventDefault();
+    if (this.tool === 'fill') { this.fillAt(this.position(event)); return; }
+    this.snapshot(); this.pointer = event.pointerId;
     this.canvas.setPointerCapture(event.pointerId); this.previous = this.position(event);
     this.ctx.fillStyle = this.tool === 'eraser' ? '#ffffff' : this.colour;
     this.ctx.beginPath(); this.ctx.arc(this.previous.x, this.previous.y, this.width(event) / 2, 0, Math.PI * 2); this.ctx.fill();
-    this.hasContent = true; this.onChange();
+    this.hasContent = true; this.changed();
   }
   width(event) {
     const pressure = event.pointerType === 'pen' ? Math.max(.3, event.pressure) * 1.5 : 1;
@@ -56,7 +60,38 @@ export class Drawing {
       this.ctx.lineWidth = this.width(point); this.ctx.lineCap = 'round'; this.ctx.lineJoin = 'round'; this.ctx.stroke(); this.previous = next;
     }
   }
-  end(event) { if (this.pointer === event.pointerId) { this.pointer = null; this.onChange(); } }
+  end(event) { if (this.pointer === event.pointerId) { this.pointer = null; this.changed(); } }
+  fillAt(position) {
+    const width = this.canvas.width, height = this.canvas.height;
+    const startX = Math.max(0, Math.min(width - 1, Math.floor(position.x)));
+    const startY = Math.max(0, Math.min(height - 1, Math.floor(position.y)));
+    const image = this.ctx.getImageData(0, 0, width, height), pixels = image.data;
+    const start = startY * width + startX;
+    const target = [...pixels.subarray(start * 4, start * 4 + 4)];
+    const colour = [1, 3, 5].map(offset => parseInt(this.colour.slice(offset, offset + 2), 16));
+    if (colour.every((value, index) => value === target[index]) && target[3] === 255) return;
+    this.snapshot();
+    const visited = new Uint8Array(width * height);
+    const queue = new Uint32Array(width * height);
+    let head = 0, tail = 1;
+    queue[0] = start; visited[start] = 1;
+    const enqueue = index => {
+      if (visited[index]) return;
+      visited[index] = 1;
+      const offset = index * 4;
+      if (target.every((value, channel) => Math.abs(pixels[offset + channel] - value) <= 24)) queue[tail++] = index;
+    };
+    while (head < tail) {
+      const index = queue[head++], x = index % width, offset = index * 4;
+      pixels[offset] = colour[0]; pixels[offset + 1] = colour[1]; pixels[offset + 2] = colour[2]; pixels[offset + 3] = 255;
+      if (x > 0) enqueue(index - 1);
+      if (x < width - 1) enqueue(index + 1);
+      if (index >= width) enqueue(index - width);
+      if (index < width * (height - 1)) enqueue(index + width);
+    }
+    this.ctx.putImageData(image, 0, 0);
+    this.hasContent = true; this.changed();
+  }
   undo() {
     if (this.locked || !this.history.length) return;
     const previous = this.history.pop();
@@ -68,11 +103,11 @@ export class Drawing {
       const copy = document.createElement('canvas'); copy.width = previous.image.width; copy.height = previous.image.height;
       copy.getContext('2d').putImageData(previous.image, 0, 0); this.white(); this.paint(copy);
     }
-    this.hasContent = previous.hasContent; this.onChange();
+    this.hasContent = previous.hasContent; this.changed();
   }
   clear() {
     if (this.locked) return;
-    this.snapshot(); this.white(); this.hasContent = false; this.onChange();
+    this.snapshot(); this.white(); this.hasContent = false; this.changed();
   }
   export() {
     const output = document.createElement('canvas'); output.width = 1536; output.height = 1024;
@@ -82,6 +117,66 @@ export class Drawing {
     context.drawImage(this.canvas, (1536 - width) / 2, (1024 - height) / 2, width, height);
     return output.toDataURL('image/png');
   }
+  visionSnapshot(source = this.canvas) {
+    const bounds = this.canvas.getBoundingClientRect();
+    const viewport = { width: Math.round(bounds.width), height: Math.round(bounds.height) };
+    const scale = Math.min(1024 / viewport.width, 1024 / viewport.height, 1);
+    const output = document.createElement('canvas');
+    output.width = Math.max(1, Math.round(viewport.width * scale));
+    output.height = Math.max(1, Math.round(viewport.height * scale));
+    output.getContext('2d').drawImage(source, 0, 0, output.width, output.height);
+    // Measure ink separately from the vision image. Each cell covers 50 units
+    // of the same 0..1000 coordinate system used by the pen tool.
+    const sample = document.createElement('canvas');
+    sample.width = 160;
+    sample.height = 160;
+    const sampleContext = sample.getContext('2d', { willReadFrequently: true });
+    sampleContext.drawImage(source, 0, 0, 160, 160);
+    const pixels = sampleContext.getImageData(0, 0, 160, 160).data;
+    const inkMap = Array.from({ length: 20 }, (_, row) => {
+      let cells = '';
+      for (let column = 0; column < 20; column++) {
+        let ink = 0;
+        for (let y = row * 8; y < row * 8 + 8; y++) {
+          for (let x = column * 8; x < column * 8 + 8; x++) {
+            const offset = (y * 160 + x) * 4;
+            if (pixels[offset + 3] > 100 && Math.min(pixels[offset], pixels[offset + 1], pixels[offset + 2]) < 220) ink++;
+          }
+        }
+        cells += ink >= 2 ? '#' : '.';
+      }
+      return cells;
+    });
+    return { image: output.toDataURL('image/png'), viewport, revision: this.revision, inkMap };
+  }
+  preview(strokes, exclusions) {
+    const output = document.createElement('canvas');
+    output.width = this.canvas.width; output.height = this.canvas.height;
+    const ctx = output.getContext('2d');
+    ctx.drawImage(this.canvas, 0, 0);
+    const bounds = this.canvas.getBoundingClientRect();
+    for (const stroke of strokes) {
+      // Reject segments crossing controls before paying for visual review.
+      const paddingX = stroke.width / bounds.width * 500;
+      const paddingY = stroke.width / bounds.height * 500;
+      const points = stroke.fill ? [...stroke.points, stroke.points[0]] : stroke.points;
+      for (let index = 1; index < points.length; index++) {
+        const from = points[index - 1], to = points[index];
+        for (const rect of exclusions) {
+          if (segmentTouchesRect(from, to, {
+            x: rect.x - paddingX, y: rect.y - paddingY,
+            width: rect.width + paddingX * 2, height: rect.height + paddingY * 2,
+          })) throw new Error('That drawing would cover the controls. Try a different location.');
+        }
+      }
+      if (stroke.fill && exclusions.some(rect => [
+        { x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y },
+        { x: rect.x, y: rect.y + rect.height }, { x: rect.x + rect.width, y: rect.y + rect.height },
+      ].some(point => pointInPolygon(point, stroke.points)))) throw new Error('That filled shape would cover the controls. Try a different location.');
+      paintStroke(ctx, stroke, output.width, output.height, bounds.width);
+    }
+    return this.visionSnapshot(output).image;
+  }
   async decode(source) {
     const image = new Image(); image.src = source; await image.decode();
     if (!image.naturalWidth || !image.naturalHeight) throw new Error('That picture could not be opened.');
@@ -90,7 +185,7 @@ export class Drawing {
   replace(image) {
     this.snapshot(); this.white();
     this.paint(image);
-    this.hasContent = true; this.onChange();
+    this.hasContent = true; this.changed();
   }
   async upload(file) {
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('Choose a PNG, JPEG or WebP picture.');
@@ -126,8 +221,46 @@ export class Drawing {
     path('M351 380 L358 398 L380 405 L360 414 L354 435 L347 413 L328 405 L347 397 M1002 296 L1009 312 L1028 317 L1010 324 L1005 343 L997 325 L978 319 L997 312', '#d6ba73', 5);
     path('M329 823 Q630 850 1104 808', '#d5ddd3', 4);
     ctx.restore();
-    this.hasContent = true; this.onChange();
+    this.hasContent = true; this.changed();
   }
+}
+
+function pointInPolygon(point, points) {
+  let inside = false;
+  for (let index = 0, previous = points.length - 1; index < points.length; previous = index++) {
+    const a = points[index], b = points[previous];
+    if ((a.y > point.y) !== (b.y > point.y)
+      && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+function paintStroke(ctx, stroke, width, height, cssWidth) {
+  ctx.beginPath();
+  stroke.points.forEach((point, index) => {
+    const x = point.x * width / 1000, y = point.y * height / 1000;
+    if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  if (stroke.fill) { ctx.closePath(); ctx.fillStyle = stroke.fill; ctx.fill(); }
+  ctx.strokeStyle = stroke.colour; ctx.lineWidth = stroke.width * width / cssWidth;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+}
+
+function segmentTouchesRect(from, to, rect) {
+  let start = 0, end = 1;
+  for (const [origin, delta, min, max] of [
+    [from.x, to.x - from.x, rect.x, rect.x + rect.width],
+    [from.y, to.y - from.y, rect.y, rect.y + rect.height],
+  ]) {
+    if (delta === 0) { if (origin < min || origin > max) return false; }
+    else {
+      const first = (min - origin) / delta, second = (max - origin) / delta;
+      start = Math.max(start, Math.min(first, second));
+      end = Math.min(end, Math.max(first, second));
+      if (start > end) return false;
+    }
+  }
+  return true;
 }
 
 // Bounded pen strokes only: this cursor never controls the desktop or runs code.
@@ -138,7 +271,11 @@ export class DrawingCursor {
     const board = this.board, canvas = board.canvas, ctx = board.ctx;
     const before = { image: ctx.getImageData(0, 0, canvas.width, canvas.height), hasContent: board.hasContent };
     const bounds = canvas.getBoundingClientRect();
-    const segments = strokes.flatMap(stroke => stroke.points.slice(1).map((point, index) => ({ from: stroke.points[index], to: point, colour: stroke.colour, width: stroke.width })));
+    const segments = strokes.flatMap(stroke => {
+      const points = stroke.fill ? [...stroke.points, stroke.points[0]] : stroke.points;
+      return points.slice(1).map((point, index) => ({ from: points[index], to: point,
+        colour: stroke.colour, width: stroke.width, stroke, last: index === points.length - 2 }));
+    });
     const totalLength = segments.reduce((sum, s) => sum + Math.hypot((s.to.x - s.from.x) * bounds.width / 1000, (s.to.y - s.from.y) * bounds.height / 1000), 0);
     const speed = Math.max(180, totalLength / 10);
     this.element.hidden = false;
@@ -147,7 +284,15 @@ export class DrawingCursor {
       const finish = error => {
         cancelAnimationFrame(frame); signal.removeEventListener('abort', abort); this.element.hidden = true;
         if (error) { board.restore(before); reject(error); }
-        else { board.history.push(before); if (board.history.length > 8) board.history.shift(); board.hasContent = true; board.onChange(); resolve(); }
+        else {
+          // Animation draws partial segments, which accumulate antialiasing.
+          // Commit the exact same paths as the reviewed offscreen preview.
+          ctx.putImageData(before.image, 0, 0);
+          for (const stroke of strokes) paintStroke(ctx, stroke, canvas.width, canvas.height, bounds.width);
+          board.history.push(before);
+          if (board.history.length > 8) board.history.shift();
+          board.hasContent = true; board.changed(); resolve();
+        }
       };
       const abort = () => finish(signal.reason || new DOMException('Cancelled', 'AbortError'));
       signal.addEventListener('abort', abort, { once: true });
@@ -165,7 +310,10 @@ export class DrawingCursor {
           // A partial segment consumes the entire frame budget. Subtracting
           // floating-point fractions can leave a tiny remainder and spin forever.
           distance = next < 1 ? 0 : Math.max(0, distance - (next - progress) * length); progress = next;
-          if (progress === 1) { index++; progress = 0; }
+          if (progress === 1) {
+            if (s.last && s.stroke.fill) paintStroke(ctx, s.stroke, canvas.width, canvas.height, bounds.width);
+            index++; progress = 0;
+          }
         }
         if (index === segments.length) finish(); else frame = requestAnimationFrame(tick);
       };

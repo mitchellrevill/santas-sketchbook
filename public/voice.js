@@ -4,12 +4,19 @@ export class Voice {
     this.state = 'idle'; this.generation = 0; this.muted = false;
   }
   setState(state) { this.state = state; this.onState(state, this.muted); }
-  async start() {
+  async start(prepare) {
     if (this.state !== 'idle') return;
     const generation = ++this.generation; this.muted = false; this.setState('connecting');
     this.delegations = new Set();
     try {
+      await prepare();
+      if (generation !== this.generation) return;
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Use localhost in a browser with microphone support.');
+      this.connectTimer = setTimeout(() => {
+        if (generation !== this.generation) return;
+        this.cleanup();
+        this.onError('Voice took too long to connect. Check microphone access and try again.');
+      }, 45000);
       const microphone = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
       if (generation !== this.generation) { microphone.getTracks().forEach(track => track.stop()); return; }
       this.microphone = microphone;
@@ -19,7 +26,7 @@ export class Voice {
         if (generation !== this.generation || this.state === 'stopping') return;
         this.audio.srcObject = new MediaStream([event.track]);
         this.onAudio(this.audio.srcObject);
-        this.audio.play().catch(() => { this.audio.hidden = false; this.onError('Press play below to hear Pip.'); });
+        this.audio.play().catch(() => { if (generation !== this.generation) return; this.audio.hidden = false; this.onError('Press play below to hear Santa’s little helper.'); });
       });
       for (const track of microphone.getTracks()) peer.addTrack(track, microphone);
       this.events = peer.createDataChannel('oai-events');
@@ -28,17 +35,16 @@ export class Voice {
         let event; try { event = JSON.parse(data); } catch { return; }
         if (event.type === 'session.started' && this.state === 'connecting') {
           clearTimeout(this.connectTimer); this.setState('active');
-          this.limitTimer = setTimeout(() => { this.onError('Time for a little break. Tap Talk to Pip to start again.'); this.stop(); }, 180_000);
         } else if (event.type === 'session.closed') this.cleanup();
         else if (event.type === 'session.input_transcript.delta' || event.type === 'session.output_transcript.delta') {
-          if (this.state === 'active' && typeof event.delta === 'string') this.onTranscript(event.type.includes('input_') ? 'You' : 'Pip', event.delta, event.start_ms, event.end_ms);
+          if (this.state === 'active' && typeof event.delta === 'string') this.onTranscript(event.type.includes('input_') ? 'You' : 'Santa’s little helper', event.delta, event.start_ms, event.end_ms);
         } else if (event.type === 'session.delegation.created') {
           const id = event.delegation?.id;
           if (this.state === 'active' && event.delegation?.target === 'client' && typeof id === 'string' && !this.delegations.has(id)) {
             this.delegations.add(id); this.onDelegation(id);
           }
         } else if (event.type === 'error') {
-          this.onError('Pip’s connection had a problem. Please try starting a new conversation.'); this.stop();
+          this.onError('Santa’s little helper’s connection had a problem. Please try starting a new conversation.'); this.stop();
         }
       });
       this.events.addEventListener('close', () => { if (generation === this.generation) this.cleanup(); });
@@ -59,7 +65,6 @@ export class Voice {
       this.controller = new AbortController();
       const result = await this.post('/api/session', { sdp: peer.localDescription.sdp }, this.controller.signal);
       if (generation !== this.generation) return;
-      this.connectTimer = setTimeout(() => { this.onError('Pip did not connect in time. Please try again.'); this.stop(); }, 20_000);
       await peer.setRemoteDescription({ type: 'answer', sdp: result.transport.sdp });
     } catch (error) {
       if (generation !== this.generation) return;
@@ -68,7 +73,17 @@ export class Voice {
     }
   }
   context(content, delegationId = null) {
-    if (this.state === 'active' && this.events?.readyState === 'open') this.events.send(JSON.stringify({ type: 'session.thinking.append', delegation_id: delegationId, content }));
+    if (this.state !== 'active' || this.events?.readyState !== 'open') return;
+    try {
+      this.events.send(JSON.stringify({ type: 'session.thinking.append', delegation_id: delegationId, content }));
+    } catch {
+      this.cleanup();
+      this.onError('Voice disconnected. Tap the microphone to reconnect.');
+    }
+  }
+  canvasContext(scene) {
+    // Structured observations are creative data, not a request to perform actions.
+    this.context(`Latest canvas observations from the app's picture helper (not continuous vision): ${JSON.stringify(scene)}`);
   }
   toggleMute() {
     if (this.state !== 'active') return;
@@ -78,16 +93,16 @@ export class Voice {
   stop() {
     if (this.state === 'idle' || this.state === 'stopping') return;
     this.microphone?.getTracks().forEach(track => { track.enabled = false; track.stop(); });
-    this.audio.pause(); this.setState('stopping'); clearTimeout(this.limitTimer); clearTimeout(this.connectTimer);
+    this.audio.pause(); this.setState('stopping'); clearTimeout(this.connectTimer);
     if (this.events?.readyState === 'open') {
-      this.events.send(JSON.stringify({ type: 'session.close' }));
+      try { this.events.send(JSON.stringify({ type: 'session.close' })); } catch { this.cleanup(); return; }
       this.closeTimer = setTimeout(() => this.cleanup(), 5000);
     } else this.cleanup();
   }
   cleanup() {
-    ++this.generation; clearTimeout(this.closeTimer); clearTimeout(this.connectTimer); clearTimeout(this.limitTimer);
+    ++this.generation; clearTimeout(this.closeTimer); clearTimeout(this.connectTimer);
     this.controller?.abort(); this.microphone?.getTracks().forEach(track => track.stop());
-    this.events?.close(); this.peer?.close(); this.audio.pause(); this.audio.srcObject = null; this.audio.hidden = true;
+    this.events?.close(); this.peer?.close(); this.muted = false; this.audio.pause(); this.audio.srcObject = null; this.audio.hidden = true;
     this.events = null; this.peer = null; this.microphone = null; this.setState('idle');
   }
 }
